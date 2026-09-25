@@ -11,7 +11,7 @@
       in
       {
         devShell = with pkgs; mkShell {
-          buildInputs = [ lld dioxus-cli sqlite ];
+          buildInputs = [ dioxus-cli ];
         };
       }
     );

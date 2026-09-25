@@ -1,5 +1,3 @@
-#![allow(unused)]
-
 use std::{
     fs::{self, File},
     io::{BufReader, Read, Result, Seek, SeekFrom},
@@ -80,7 +78,7 @@ mod tests {
     use super::*;
     use std::{env, io::Write};
 
-    fn memory_file(buf: &[u8], frame_size: u16) -> Result<FileReader> {
+    fn tmp_file(buf: &[u8], frame_size: u16) -> Result<FileReader> {
         let path = env::temp_dir().join("file_reader_test.tmp");
 
         let mut file = File::options()
@@ -106,7 +104,7 @@ mod tests {
 
     #[test]
     fn test_next() -> Result<()> {
-        let mut file = memory_file(b"0123456789", 4)?;
+        let mut file = tmp_file(b"0123456789", 4)?;
 
         assert_eq!(file.size, 10);
         assert_eq!(file.num_of_frames(), 3);
@@ -120,7 +118,7 @@ mod tests {
         assert_eq!(file.next()?, Some(b"4567".into()));
 
         file.seek_at(1);
-        file.seek_relative(1);
+        file.seek_relative(1); // skip 1
         assert_eq!(file.next()?, Some(b"89".into()));
 
         Ok(())
@@ -128,14 +126,14 @@ mod tests {
 
     #[test]
     fn test_empty_file() -> Result<()> {
-        let mut file = memory_file(b"", 4)?;
+        let mut file = tmp_file(b"", 4)?;
         assert_eq!(file.next()?, None);
         Ok(())
     }
 
     #[test]
     fn test_frame_boundary() -> Result<()> {
-        let mut file = memory_file(b"0123456789012345", 4)?;
+        let mut file = tmp_file(b"0123456789012345", 4)?;
 
         assert_eq!(file.num_of_frames(), 4);
 

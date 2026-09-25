@@ -114,96 +114,108 @@ mod tests {
     use super::*;
     use std::io::Cursor;
 
-    fn create_writer(frame_size: u16) -> FileWriter<Cursor<Vec<u8>>> {
+    fn writer(frame_size: u16) -> FileWriter<Cursor<Vec<u8>>> {
         FileWriter::new(Cursor::new(Vec::new()), frame_size)
     }
 
-    fn contents(writer: &FileWriter<Cursor<Vec<u8>>>) -> &[u8] {
+    fn read(writer: &FileWriter<Cursor<Vec<u8>>>) -> &[u8] {
         writer.file.get_ref()
     }
 
     #[test]
-    fn writes_contiguous_chunks() {
-        let mut writer = create_writer(2);
+    fn many_short_write() {
+        let mut w = writer(2);
+        w.write(2, Box::new([2]));
+        w.write(1, Box::new([1]));
+        w.write(0, Box::new([0]));
 
-        writer.write(0, Box::new([0, 0]));
-        writer.write(1, Box::new([1, 1]));
-        writer.write(2, Box::new([2]));
-
-        assert_eq!(writer.total_bytes(), 5);
-        writer.flush().unwrap();
-
-        assert_eq!(contents(&writer), &[0, 0, 1, 1, 2]);
-        assert_eq!(writer.total_bytes(), 0);
+        assert_eq!(w.total_bytes(), 3);
+        w.flush().unwrap();
+        assert_eq!(read(&w), &[0, 0, 1, 0, 2]);
     }
 
     #[test]
-    fn writes_chunks_out_of_order() {
-        let mut writer = create_writer(2);
+    fn write_contiguous() {
+        let mut w = writer(2);
 
-        writer.write(2, Box::new([2]));
-        writer.write(0, Box::new([0, 0]));
-        writer.write(1, Box::new([1, 1]));
+        w.write(0, Box::new([0, 0]));
+        w.write(1, Box::new([1, 1]));
+        w.write(2, Box::new([2]));
 
-        writer.flush().unwrap();
-        assert_eq!(contents(&writer), &[0, 0, 1, 1, 2]);
+        assert_eq!(w.total_bytes(), 5);
+        w.flush().unwrap();
+
+        assert_eq!(read(&w), &[0, 0, 1, 1, 2]);
+        assert_eq!(w.total_bytes(), 0);
     }
 
     #[test]
-    fn writes_chunks_with_a_gap() {
-        let mut writer = create_writer(2);
+    fn write_out_of_order() {
+        let mut w = writer(2);
 
-        writer.write(0, Box::new([0, 0]));
-        writer.write(2, Box::new([2, 2]));
+        w.write(2, Box::new([2]));
+        w.write(0, Box::new([0, 0]));
+        w.write(1, Box::new([1, 1]));
 
-        writer.flush().unwrap();
-        assert_eq!(contents(&writer), &[0, 0, 0, 0, 2, 2]);
+        w.flush().unwrap();
+        assert_eq!(read(&w), &[0, 0, 1, 1, 2]);
     }
 
     #[test]
-    fn writes_partial_chunk() {
-        let mut writer = create_writer(4);
+    fn write_with_a_gap() {
+        let mut w = writer(2);
 
-        writer.write(0, Box::new([1, 2]));
-        writer.write(1, Box::new([3, 4]));
+        w.write(0, Box::new([0, 0]));
+        w.write(2, Box::new([2, 2]));
 
-        writer.flush().unwrap();
-        assert_eq!(contents(&writer), &[1, 2, 0, 0, 3, 4]);
+        w.flush().unwrap();
+        assert_eq!(read(&w), &[0, 0, 0, 0, 2, 2]);
     }
 
     #[test]
-    fn overwrites_existing_chunk() {
-        let mut writer = create_writer(2);
+    fn write_partial() {
+        let mut w = writer(4);
 
-        writer.write(0, Box::new([1, 1]));
-        writer.write(0, Box::new([2, 2]));
+        w.write(0, Box::new([1, 2]));
+        w.write(1, Box::new([3, 4]));
 
-        assert_eq!(writer.total_bytes(), 2);
+        w.flush().unwrap();
+        assert_eq!(read(&w), &[1, 2, 0, 0, 3, 4]);
+    }
 
-        writer.flush().unwrap();
-        assert_eq!(contents(&writer), &[2, 2]);
+    #[test]
+    fn overwrites_existing() {
+        let mut w = writer(2);
+
+        w.write(0, Box::new([1, 1]));
+        w.write(0, Box::new([2, 2]));
+
+        assert_eq!(w.total_bytes(), 2);
+
+        w.flush().unwrap();
+        assert_eq!(read(&w), &[2, 2]);
     }
 
     #[test]
     fn can_write_after_flush() {
-        let mut writer = create_writer(2);
+        let mut w = writer(2);
 
-        writer.write(0, Box::new([1, 2]));
-        writer.flush().unwrap();
+        w.write(0, Box::new([1, 2]));
+        w.flush().unwrap();
 
-        writer.write(2, Box::new([3, 4]));
-        writer.flush().unwrap();
+        w.write(2, Box::new([3, 4]));
+        w.flush().unwrap();
 
-        assert_eq!(contents(&writer), &[1, 2, 0, 0, 3, 4]);
+        assert_eq!(read(&w), &[1, 2, 0, 0, 3, 4]);
     }
 
     #[test]
-    fn writing_past_eof_creates_zero_filled_gap() {
-        let mut writer = create_writer(2);
+    fn write_beyond_eof() {
+        let mut w = writer(2);
 
-        writer.write(3, Box::new([6]));
-        writer.flush().unwrap();
+        w.write(3, Box::new([6]));
+        w.flush().unwrap();
 
-        assert_eq!(contents(&writer), &[0, 0, 0, 0, 0, 0, 6]);
+        assert_eq!(read(&w), &[0, 0, 0, 0, 0, 0, 6]);
     }
 }

@@ -1,6 +1,6 @@
 use std::{
     fs::File,
-    io::{self, IoSlice, Result, Seek, SeekFrom, Write},
+    io::{self, *},
     path::Path,
 };
 
@@ -18,7 +18,11 @@ pub struct FileWriter<T: Write + Seek> {
 
 impl FileWriter<File> {
     pub fn open(path: impl AsRef<Path>, frame_size: u16) -> Result<Self> {
-        let file = File::options().create(true).write(true).open(path)?;
+        let file = File::options()
+            .truncate(false)
+            .create(true)
+            .write(true)
+            .open(path)?;
 
         Ok(FileWriter::new(file, frame_size))
     }

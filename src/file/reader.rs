@@ -1,8 +1,7 @@
 use std::{
     fs::{self, File},
-    io::{BufReader, Read, Result, Seek, SeekFrom},
+    io::*,
     path::Path,
-    time::SystemTime,
 };
 
 #[derive(Debug)]
@@ -57,7 +56,7 @@ impl FileReader {
         Ok(())
     }
 
-    pub fn next(&mut self) -> Result<Option<Vec<u8>>> {
+    pub fn next_chunk(&mut self) -> Result<Option<Vec<u8>>> {
         let remaining = self.size.saturating_sub(self.offset);
         if remaining == 0 {
             return Ok(None);
@@ -109,17 +108,17 @@ mod tests {
         assert_eq!(file.size, 10);
         assert_eq!(file.num_of_frames(), 3);
 
-        assert_eq!(file.next()?, Some(b"0123".into()));
-        assert_eq!(file.next()?, Some(b"4567".into()));
-        assert_eq!(file.next()?, Some(b"89".into()));
-        assert_eq!(file.next()?, None);
+        assert_eq!(file.next_chunk()?, Some(b"0123".into()));
+        assert_eq!(file.next_chunk()?, Some(b"4567".into()));
+        assert_eq!(file.next_chunk()?, Some(b"89".into()));
+        assert_eq!(file.next_chunk()?, None);
 
-        file.seek_at(1);
-        assert_eq!(file.next()?, Some(b"4567".into()));
+        file.seek_at(1)?;
+        assert_eq!(file.next_chunk()?, Some(b"4567".into()));
 
-        file.seek_at(1);
-        file.seek_relative(1); // skip 1
-        assert_eq!(file.next()?, Some(b"89".into()));
+        file.seek_at(1)?;
+        file.seek_relative(1)?; // skip next
+        assert_eq!(file.next_chunk()?, Some(b"89".into()));
 
         Ok(())
     }
@@ -127,7 +126,7 @@ mod tests {
     #[test]
     fn test_empty_file() -> Result<()> {
         let mut file = tmp_file(b"", 4)?;
-        assert_eq!(file.next()?, None);
+        assert_eq!(file.next_chunk()?, None);
         Ok(())
     }
 
@@ -140,9 +139,9 @@ mod tests {
         file.seek_relative(1)?;
         file.seek_relative(1)?;
 
-        assert_eq!(file.next()?, Some(b"8901".into()));
-        assert_eq!(file.next()?, Some(b"2345".into()));
-        assert_eq!(file.next()?, None);
+        assert_eq!(file.next_chunk()?, Some(b"8901".into()));
+        assert_eq!(file.next_chunk()?, Some(b"2345".into()));
+        assert_eq!(file.next_chunk()?, None);
 
         Ok(())
     }

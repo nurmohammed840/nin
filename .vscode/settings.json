@@ -11,16 +11,22 @@
         "**/Flutter/ephemeral": true,
         "**/.symlinks": true,
         "**/.plugin_symlinks": true,
-        
+        //      
         "target": true,
-
-        "app/analysis_options.yaml": true,
+        "**/*.lock": true,
+        //
         "app/flutter_rust_bridge.yaml": true,
+        "app/analysis_options.yaml": true,
+        "app/.flutter-plugins-dependencies": true,
+        "app/.metadata": true,
         "app/localpost.iml": true,
-
+        //
         "app/android": true,
         "app/windows": true,
         "app/linux": true,
         "app/rust_builder": true,
+        //
+        "bridge/src/frb_generated.rs": true,
+        "bridge/src/lib.rs": true,
     }
 }

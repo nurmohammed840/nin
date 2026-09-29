@@ -4,8 +4,9 @@ pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
 }
 
-#[flutter_rust_bridge::frb(sync)]
-pub fn get_local_ip() -> Option<String> {
-    let addr = localpost::local_ip_address::local_ip().ok()?;
-    Some(addr.to_string())
+pub fn get_local_ip() -> String {
+    localpost::local_ip_address::local_ip()
+        .ok()
+        .map(|ip| ip.to_string())
+        .unwrap_or_default()
 }

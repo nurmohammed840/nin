@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:localpost/settings.dart';
 import 'package:localpost/src/rust/api/simple.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 import 'package:localpost/utils.dart';
@@ -51,7 +52,12 @@ class HomePage extends StatelessWidget {
           IconButton(
             tooltip: 'Settings',
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () {},
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const Settings()),
+              );
+            },
           ),
         ],
       ),

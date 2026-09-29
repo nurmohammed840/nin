@@ -4,6 +4,7 @@ class IPv4Formatter extends TextInputFormatter {
   @override
   TextEditingValue formatEditUpdate(old, val) {
     if (val.text.contains(' ')) return old;
+    if (val.text.contains('..')) return old;
 
     final parts = val.text.split('.');
 

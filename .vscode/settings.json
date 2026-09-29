@@ -26,7 +26,7 @@
         "app/linux": true,
         "app/rust_builder": true,
         //
-        "bridge/src/frb_generated.rs": true,
-        "bridge/src/lib.rs": true,
+        "app/rust/src/frb_generated.rs": true,
+        "app/rust/src/lib.rs": true,
     }
 }

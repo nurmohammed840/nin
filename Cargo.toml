@@ -1,10 +1,11 @@
 [workspace]
 resolver = "3"
-members = ["bridge"]
+members = ["app/rust"]
 
 [package]
-name = "nin"
+name = "localpost"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+local-ip-address = "0.6"

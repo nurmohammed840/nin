@@ -1,8 +1,6 @@
-use std::{
-    fs::{self, File},
-    io::*,
-    path::Path,
-};
+use std::{fs::File, io::*, path::Path, time::UNIX_EPOCH};
+
+use crate::protocol::FileInfo;
 
 #[derive(Debug)]
 pub struct FileReader {
@@ -13,7 +11,7 @@ pub struct FileReader {
 }
 
 impl FileReader {
-    pub fn open(path: impl AsRef<Path>, frame_size: u16) -> Result<(Self, fs::Metadata)> {
+    pub fn open(path: impl AsRef<Path>, frame_size: u16) -> Result<(Self, FileInfo)> {
         Self::open_with_capacity(path, frame_size, 8 * 1024)
     }
 
@@ -21,27 +19,46 @@ impl FileReader {
         path: impl AsRef<Path>,
         frame_size: u16,
         capacity: usize,
-    ) -> Result<(Self, fs::Metadata)> {
+    ) -> Result<(Self, FileInfo)> {
+        let name = path
+            .as_ref()
+            .file_name()
+            .unwrap()
+            .as_encoded_bytes()
+            .to_vec();
+
         let file = File::options().read(true).open(path)?;
         let metadata = file.metadata()?;
+        let size = metadata.len();
+
+        let last_modified = metadata
+            .modified()?
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
 
         Ok((
             FileReader {
                 file: BufReader::with_capacity(capacity, file),
-                size: metadata.len(),
+                size,
                 frame_size,
                 offset: 0,
             },
-            metadata,
+            FileInfo {
+                name,
+                size,
+                frame_size,
+                last_modified,
+            },
         ))
-    }
-
-    pub fn pos(&self) -> u64 {
-        self.offset / self.frame_size as u64
     }
 
     pub fn num_of_frames(&self) -> u64 {
         self.size.div_ceil(self.frame_size as u64)
+    }
+
+    pub fn pos(&self) -> u64 {
+        self.offset / self.frame_size as u64
     }
 
     pub fn seek_at(&mut self, no: u64) -> Result<()> {
@@ -99,8 +116,14 @@ mod tests {
         file.seek_at(0)?;
         Ok(file)
     }
-
     #[test]
+    fn test_all() -> Result<()> {
+        test_next()?;
+        test_empty_file()?;
+        test_frame_boundary()?;
+        Ok(())
+    }
+
     fn test_next() -> Result<()> {
         let mut file = tmp_file(b"0123456789", 4)?;
 
@@ -122,14 +145,12 @@ mod tests {
         Ok(())
     }
 
-    #[test]
     fn test_empty_file() -> Result<()> {
         let mut file = tmp_file(b"", 4)?;
         assert_eq!(file.next_chunk()?, None);
         Ok(())
     }
 
-    #[test]
     fn test_frame_boundary() -> Result<()> {
         let mut file = tmp_file(b"0123456789012345", 4)?;
 

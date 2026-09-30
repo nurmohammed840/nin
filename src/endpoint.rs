@@ -1,6 +1,6 @@
 #![allow(unused)]
 use crate::file::utils::write_all_vectored;
-use crate::protocol::{Hello, SystemInfo};
+use crate::protocol::{FileInfo, Hello, SystemInfo};
 use crate::{Result, protocol::Message};
 
 use lipi::{Decode, Encode};
@@ -28,10 +28,7 @@ impl EndPoint {
     pub fn accept(&mut self) -> Result<(SystemInfo, Conn)> {
         let (stream, addr) = self.tcp.accept()?;
         let mut conn = Conn::new(stream, addr)?;
-
         let info = conn.read_hello()?;
-        conn.send_hello()?;
-
         Ok((info, conn))
     }
 }
@@ -69,14 +66,16 @@ impl Conn {
         Ok((info, conn))
     }
 
-    pub fn send_hello(&mut self) -> Result<()> {
-        let msg = Message::Handshake(Hello::message());
-        self.send_frame(&msg.to_bytes()?);
-        Ok(())
+    pub fn req_send_file(&mut self, info: FileInfo) -> Result<()> {
+        self.send(Message::Write(info))
     }
 
-    fn read_hello(&mut self) -> Result<SystemInfo> {
-        let hello = match self.read_message()? {
+    pub fn send_hello(&mut self) -> Result<()> {
+        self.send(Message::Handshake(Hello::message()))
+    }
+
+    pub fn read_hello(&mut self) -> Result<SystemInfo> {
+        let hello = match self.read()? {
             Message::Handshake(hello) => hello,
             _ => return Err("Expected Hello".into()),
         };
@@ -107,9 +106,13 @@ impl Conn {
         Ok(buf)
     }
 
-    pub fn read_message(&mut self) -> Result<Message> {
+    pub fn read(&mut self) -> Result<Message> {
         let buf = self.read_frame()?;
-        Message::decode(&mut buf.as_slice())
+        Message::decode(&mut buf.as_ref())
+    }
+
+    pub fn send(&mut self, msg: Message) -> Result<()> {
+        self.send_frame(&msg.to_bytes()?)
     }
 }
 
@@ -128,7 +131,8 @@ mod tests {
 
         thread::scope(|c| {
             c.spawn(|| {
-                let (user, conn) = server.accept().unwrap();
+                let (user, mut conn) = server.accept().unwrap();
+                conn.send_hello().unwrap();
                 println!("Server: {:#?}; {user:#?}", conn.addr);
             });
 

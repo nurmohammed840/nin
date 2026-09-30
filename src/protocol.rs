@@ -6,8 +6,30 @@ use std::{env::consts as SYS, ops::RangeBounds};
 #[derive(Debug, Encode, Decode)]
 pub enum Message {
     Handshake(Hello) = 1,
-    Read = 2,
-    Write = 3,
+    Write(FileInfo) = 2,
+    Read = 3,
+}
+
+pub enum ReadMetadata {
+    Full,
+}
+
+#[derive(Debug, Encode, Decode)]
+pub struct FileInfo {
+    #[key = 0]
+    pub name: Vec<u8>,
+    #[key = 1]
+    pub size: u64,
+    #[key = 2]
+    pub frame_size: u16,
+    #[key = 3]
+    pub last_modified: u64,
+}
+
+impl FileInfo {
+    pub fn num_of_frames(&self) -> u64 {
+        self.size.div_ceil(self.frame_size as u64)
+    }
 }
 
 #[derive(Debug, Encode, Decode)]

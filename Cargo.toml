@@ -9,4 +9,5 @@ edition = "2024"
 
 [dependencies]
 local-ip-address = "0.6"
-sysinfo = { version = "0.39.6", features = ["system"], default-features = false }
+sysinfo = { version = "0.39", default-features = false, features = ["system"] }
+lipi = { git = "https://github.com/nurmohammed840/setu" }

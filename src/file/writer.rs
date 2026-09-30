@@ -1,8 +1,5 @@
-use std::{
-    fs::File,
-    io::{self, *},
-    path::Path,
-};
+use crate::file::utils::write_all_vectored;
+use std::{fs::File, io::*, path::Path};
 
 struct Chunk {
     offset: u64,
@@ -92,25 +89,6 @@ impl<T: Write + Seek> Drop for FileWriter<T> {
     fn drop(&mut self) {
         let _ = self.flush();
     }
-}
-
-/// Copied from [std::io::Write::write_all_vectored]
-fn write_all_vectored<T: Write>(this: &mut T, mut bufs: &mut [IoSlice<'_>]) -> Result<()> {
-    IoSlice::advance_slices(&mut bufs, 0);
-    while !bufs.is_empty() {
-        match this.write_vectored(bufs) {
-            Ok(0) => {
-                return Err(io::Error::new(
-                    io::ErrorKind::WriteZero,
-                    "failed to write whole buffer",
-                ));
-            }
-            Ok(n) => IoSlice::advance_slices(&mut bufs, n),
-            Err(ref e) if e.kind() == io::ErrorKind::Interrupted => {}
-            Err(e) => return Err(e),
-        }
-    }
-    Ok(())
 }
 
 #[cfg(test)]

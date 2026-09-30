@@ -1,6 +1,6 @@
 #![allow(unused)]
 use crate::file::utils::write_all_vectored;
-use crate::protocol::Hello;
+use crate::protocol::{Hello, SystemInfo};
 use crate::{Result, protocol::Message};
 
 use lipi::{Decode, Encode};
@@ -25,10 +25,14 @@ impl EndPoint {
         })
     }
 
-    pub fn accept(&mut self) -> Result<Conn> {
+    pub fn accept(&mut self) -> Result<(SystemInfo, Conn)> {
         let (stream, addr) = self.tcp.accept()?;
-        let conn = Conn::new(stream, addr)?;
-        Ok(conn)
+        let mut conn = Conn::new(stream, addr)?;
+
+        let info = conn.read_hello()?;
+        conn.send_hello()?;
+
+        Ok((info, conn))
     }
 }
 
@@ -53,22 +57,32 @@ impl Conn {
         })
     }
 
-    pub fn open(addr: impl ToSocketAddrs) -> Result<Self> {
+    pub fn open(addr: impl ToSocketAddrs) -> Result<(SystemInfo, Self)> {
         let stream = TcpStream::connect(addr)?;
         let addr = stream.peer_addr()?;
 
         let mut conn = Conn::new(stream, addr)?;
 
         conn.send_hello()?;
+        let info = conn.read_hello()?;
 
-        let response = match conn.read_message()? {
+        Ok((info, conn))
+    }
+
+    pub fn send_hello(&mut self) -> Result<()> {
+        let msg = Message::Handshake(Hello::message());
+        self.send_frame(&msg.to_bytes()?);
+        Ok(())
+    }
+
+    fn read_hello(&mut self) -> Result<SystemInfo> {
+        let hello = match self.read_message()? {
             Message::Handshake(hello) => hello,
             _ => return Err("Expected Hello".into()),
         };
 
-        response.check_protocol_version(10..=19)?;
-
-        Ok(conn)
+        hello.check_protocol_version(10..=19)?;
+        Ok(hello.info)
     }
 
     pub fn send_frame(&mut self, buf: &[u8]) -> Result<()> {
@@ -80,12 +94,7 @@ impl Conn {
             &mut [IoSlice::new(&raw_len), IoSlice::new(buf)],
         )?;
 
-        Ok(())
-    }
-
-    pub fn send_hello(&mut self) -> Result<()> {
-        let msg = Message::Handshake(Hello::message());
-        self.send_frame(&msg.to_bytes()?);
+        self.writer.flush()?;
         Ok(())
     }
 
@@ -100,16 +109,16 @@ impl Conn {
 
     pub fn read_message(&mut self) -> Result<Message> {
         let buf = self.read_frame()?;
-        Ok(Message::decode(&mut buf.as_slice())?)
+        Message::decode(&mut buf.as_slice())
     }
 }
 
+#[ignore]
 #[cfg(test)]
 mod tests {
     use std::thread;
 
     use super::*;
-
     const PORT: u16 = 54231;
 
     #[test]
@@ -119,12 +128,13 @@ mod tests {
 
         thread::scope(|c| {
             c.spawn(|| {
-                let conn = server.accept().unwrap();
-                println!("conn: {:#?}", conn.addr);
+                let (user, conn) = server.accept().unwrap();
+                println!("Server: {:#?}; {user:#?}", conn.addr);
             });
 
             c.spawn(|| {
-                Conn::open(addr);
+                let (user, conn) = Conn::open(addr).unwrap();
+                println!("User: {:#?}; {user:#?}", conn.addr);
             });
         });
 

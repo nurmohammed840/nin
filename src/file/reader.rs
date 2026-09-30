@@ -63,7 +63,6 @@ impl FileReader {
         }
 
         let buf_size = remaining.min(self.frame_size as u64) as usize;
-
         let mut buf = vec![0u8; buf_size];
 
         self.file.read_exact(&mut buf)?;

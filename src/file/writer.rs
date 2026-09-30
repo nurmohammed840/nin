@@ -68,7 +68,6 @@ impl<T: Write + Seek> FileWriter<T> {
             let mut bufs = vec![IoSlice::new(&buf.data)];
 
             let mut expected_offset = start_offset + buf.data.len() as u64;
-
             while let Some(next) = chunks.next_if(|&next| next.offset == expected_offset) {
                 bufs.push(IoSlice::new(&next.data));
                 expected_offset += next.data.len() as u64;

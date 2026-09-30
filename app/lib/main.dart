@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:localpost/settings.dart';
+import 'package:localpost/signal.dart';
 import 'package:localpost/src/rust/api/simple.dart';
 import 'package:localpost/src/rust/frb_generated.dart';
 import 'package:localpost/utils.dart';
@@ -29,24 +30,51 @@ class MyApp extends StatelessWidget {
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key, required this.addr});
+  HomePage({super.key, required this.addr});
 
   final String addr;
+
+  final selectedNav = CreateState(0);
+
+  static const destinations = [
+    NavigationDestination(
+      icon: Icon(Icons.home_outlined),
+      selectedIcon: Icon(Icons.home),
+      label: 'Home',
+    ),
+    NavigationDestination(
+      icon: Icon(Icons.swap_vert_outlined),
+      selectedIcon: Icon(Icons.swap_vert),
+      label: 'Transfers',
+    ),
+  ];
+
+  static const screens = [HomeScreen(), TransferScreen()];
+
+  @override
+  Widget build(BuildContext context) {
+    return selectedNav.watch(
+      (_) => Scaffold(
+        body: IndexedStack(index: selectedNav.value, children: screens),
+        bottomNavigationBar: NavigationBar(
+          labelBehavior: .alwaysHide,
+          selectedIndex: selectedNav.value,
+          onDestinationSelected: selectedNav.set,
+          destinations: destinations,
+        ),
+      ),
+    );
+  }
+}
+
+class HomeScreen extends StatelessWidget {
+  const new({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: .start,
-          children: [
-            const Text('LocalPost'),
-            Text(
-              addr,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-          ],
-        ),
+        title: const Text('LocalPost'),
         actionsPadding: const .only(right: 10),
         actions: [
           IconButton(
@@ -61,15 +89,19 @@ class HomePage extends StatelessWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          final ip = await promptIPAddr(context);
-          if (ip == null) {
-            return;
-          }
-        },
-        tooltip: 'Connect',
-        child: const Icon(Icons.link),
+    );
+  }
+}
+
+class TransferScreen extends StatelessWidget {
+  const new({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Transfer'),
+        actionsPadding: const .only(right: 10),
       ),
     );
   }
